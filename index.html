@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ML Models - Classification & Regression</title>
+    <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/ort.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px 30px;
+            text-align: center;
+        }
+
+        header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        header p {
+            font-size: 1.1rem;
+            opacity: 0.95;
+        }
+
+        .status {
+            margin: 20px;
+            padding: 15px;
+            background: #fff3cd;
+            border: 2px solid #ffc107;
+            border-radius: 10px;
+            text-align: center;
+            color: #856404;
+            font-weight: 600;
+        }
+
+        .status.success {
+            background: #d4edda;
+            border-color: #28a745;
+            color: #155724;
+        }
+
+        .status.error {
+            background: #f8d7da;
+            border-color: #dc3545;
+            color: #721c24;
+        }
+
+        /* Tab Navigation */
+        .tab-nav {
+            display: flex;
+            background: #f8f9fa;
+            border-bottom: 3px solid #e0e0e0;
+        }
+
+        .tab-button {
+            flex: 1;
+            padding: 20px;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #666;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .tab-button:hover {
+            background: rgba(102, 126, 234, 0.1);
+            color: #667eea;
+        }
+
+        .tab-button.active {
+            color: #667eea;
+            background: white;
+        }
+
+        .tab-button.active::after {
+            content: '';
+            position: absolute;
+            bottom: -3px;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .tab-button .icon {
+            font-size: 1.5rem;
+            margin-right: 8px;
+            display: inline-block;
+        }
+
+        /* Tab Content */
+        .tab-content {
+            display: none;
+            padding: 40px;
+            animation: fadeIn 0.5s ease;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .model-info {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            border-left: 5px solid #667eea;
+        }
+
+        .model-info h3 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 1.3rem;
+        }
+
+        .model-info p {
+            color: #666;
+            margin: 5px 0;
+            font-size: 0.95rem;
+        }
+
+        .model-info .metric {
+            display: inline-block;
+            background: white;
+            padding: 8px 15px;
+            border-radius: 20px;
+            margin: 5px 5px 5px 0;
+            font-weight: 600;
+            color: #667eea;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 0;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            background: white;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .input-hint {
+            font-size: 0.85rem;
+            color: #999;
+            margin-top: 5px;
+        }
+
+        button {
+            width: 100%;
+            padding: 18px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 1.2rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 20px;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .result {
+            margin-top: 30px;
+            padding: 25px;
+            border-radius: 15px;
+            display: none;
+            animation: slideIn 0.5s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: scale(0.95);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        .result.success {
+            background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+            border: 2px solid #28a745;
+        }
+
+        .result.error {
+            background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
+            border: 2px solid #dc3545;
+        }
+
+        .result h3 {
+            margin-bottom: 15px;
+            color: #333;
+            font-size: 1.5rem;
+        }
+
+        .result p {
+            color: #666;
+            line-height: 1.8;
+            margin: 10px 0;
+        }
+
+        .prediction-value {
+            font-size: 2.5rem;
+            font-weight: bold;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin: 15px 0;
+            text-align: center;
+        }
+
+        .prediction-details {
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 15px;
+            font-size: 0.9rem;
+        }
+
+        .loading {
+            text-align: center;
+            color: #667eea;
+            font-weight: 600;
+            font-size: 1.1rem;
+        }
+
+        footer {
+            background: #f8f9fa;
+            padding: 30px;
+            text-align: center;
+            color: #666;
+            border-top: 3px solid #e0e0e0;
+        }
+
+        footer a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        footer a:hover {
+            text-decoration: underline;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            header h1 {
+                font-size: 2rem;
+            }
+
+            .tab-button {
+                font-size: 1rem;
+                padding: 15px 10px;
+            }
+
+            .tab-button .icon {
+                display: block;
+                margin: 0 0 5px 0;
+            }
+
+            .tab-content {
+                padding: 20px;
+            }
+
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🤖 Machine Learning Models</h1>
+            <p>Interactive Classification & Regression Predictions</p>
+        </header>
+
+        <div class="status" id="modelStatus">
+            📥 Loading models... Please wait.
+        </div>
+
+        <!-- Tab Navigation -->
+        <div class="tab-nav">
+            <button class="tab-button active" onclick="switchTab('classification')">
+                <span class="icon">❤️</span>
+                <span>Heart Disease Classification</span>
+            </button>
+            <button class="tab-button" onclick="switchTab('regression')">
+                <span class="icon">💰</span>
+                <span>Insurance Cost Regression</span>
+            </button>
+        </div>
+
+        <!-- Classification Tab -->
+        <div id="classification" class="tab-content active">
+            <div class="model-info">
+                <h3>Heart Failure Prediction Model</h3>
+                <p>Predicts the likelihood of heart disease based on medical indicators.</p>
+                <div style="margin-top: 10px;">
+                    <span class="metric">Accuracy: 89.67%</span>
+                    <span class="metric">F1-Score: 0.8961</span>
+                    <span class="metric">Model: Wide Neural Network</span>
+                </div>
+            </div>
+
+            <form id="classificationForm">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Age (years)</label>
+                        <input type="number" id="class_age" required min="1" max="120" value="45">
+                        <div class="input-hint">Range: 1-120</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Sex</label>
+                        <select id="class_sex" required>
+                            <option value="1">Male</option>
+                            <option value="0">Female</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Chest Pain Type</label>
+                        <select id="class_chestpain" required>
+                            <option value="1">ATA (Atypical Angina)</option>
+                            <option value="2">NAP (Non-Anginal Pain)</option>
+                            <option value="0">ASY (Asymptomatic)</option>
+                            <option value="3">TA (Typical Angina)</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Resting Blood Pressure (mm Hg)</label>
+                        <input type="number" id="class_bp" required min="80" max="200" value="120">
+                        <div class="input-hint">Normal: 90-120</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Cholesterol (mg/dl)</label>
+                        <input type="number" id="class_chol" required min="100" max="600" value="200">
+                        <div class="input-hint">Normal: below 200</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Fasting Blood Sugar > 120 mg/dl</label>
+                        <select id="class_fbs" required>
+                            <option value="0">No</option>
+                            <option value="1">Yes</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Resting ECG</label>
+                        <select id="class_ecg" required>
+                            <option value="1">Normal</option>
+                            <option value="2">ST-T wave abnormality</option>
+                            <option value="0">Left ventricular hypertrophy</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Max Heart Rate (bpm)</label>
+                        <input type="number" id="class_hr" required min="60" max="220" value="150">
+                        <div class="input-hint">Normal: 60-100</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Exercise Induced Angina</label>
+                        <select id="class_angina" required>
+                            <option value="0">No</option>
+                            <option value="1">Yes</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Oldpeak (ST depression)</label>
+                        <input type="number" id="class_oldpeak" required step="0.1" min="0" max="10" value="1.0">
+                        <div class="input-hint">Range: 0-6</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>ST Slope</label>
+                        <select id="class_slope" required>
+                            <option value="2">Up</option>
+                            <option value="1">Flat</option>
+                            <option value="0">Down</option>
+                        </select>
+                    </div>
+                </div>
+
+                <button type="submit">🔍 Predict Heart Disease Risk</button>
+            </form>
+
+            <div id="classificationResult" class="result"></div>
+        </div>
+
+        <!-- Regression Tab -->
+        <div id="regression" class="tab-content">
+            <div class="model-info">
+                <h3>Insurance Cost Prediction Model</h3>
+                <p>Estimates annual health insurance charges based on personal information.</p>
+                <div style="margin-top: 10px;">
+                    <span class="metric">R² Score: 0.8743</span>
+                    <span class="metric">RMSE: $4,417</span>
+                    <span class="metric">Model: Deep Neural Network</span>
+                </div>
+            </div>
+
+            <form id="regressionForm">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Age (years)</label>
+                        <input type="number" id="reg_age" required min="18" max="100" value="30">
+                        <div class="input-hint">Range: 18-100</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Sex</label>
+                        <select id="reg_sex" required>
+                            <option value="1">Male</option>
+                            <option value="0">Female</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>BMI (Body Mass Index)</label>
+                        <input type="number" id="reg_bmi" required step="0.1" min="15" max="60" value="25.0">
+                        <div class="input-hint">Normal: 18.5-24.9</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Number of Children</label>
+                        <input type="number" id="reg_children" required min="0" max="10" value="0">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Smoker</label>
+                        <select id="reg_smoker" required>
+                            <option value="0">No</option>
+                            <option value="1">Yes</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Region</label>
+                        <select id="reg_region" required>
+                            <option value="0">Northeast</option>
+                            <option value="1">Northwest</option>
+                            <option value="2">Southeast</option>
+                            <option value="3">Southwest</option>
+                        </select>
+                    </div>
+                </div>
+
+                <button type="submit">💵 Predict Insurance Cost</button>
+            </form>
+
+            <div id="regressionResult" class="result"></div>
+        </div>
+
+        <footer>
+            <p>🎓 Machine Learning Project - PyTorch, ONNX & GitHub Pages</p>
+            <p><a href="https://github.com" target="_blank">View Documentation on GitHub</a></p>
+        </footer>
+    </div>
+
+    <script>
+        let classificationSession = null;
+        let regressionSession = null;
+        let classScaler = null;
+        let regScaler = null;
+
+        // Tab Switching
+        function switchTab(tabName) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelectorAll('.tab-button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+
+            // Show selected tab
+            document.getElementById(tabName).classList.add('active');
+            event.target.closest('.tab-button').classList.add('active');
+        }
+
+        // Load models
+        async function loadModels() {
+            try {
+                classificationSession = await ort.InferenceSession.create('heart_failure_model.onnx');
+                regressionSession = await ort.InferenceSession.create('insurance_regression_model.onnx');
+                
+                const classScalerResponse = await fetch('scaler_params.json');
+                classScaler = await classScalerResponse.json();
+                
+                const regScalerResponse = await fetch('insurance_scaler_params.json');
+                regScaler = await regScalerResponse.json();
+                
+                document.getElementById('modelStatus').innerHTML = '✅ Models loaded successfully! Ready to make predictions.';
+                document.getElementById('modelStatus').className = 'status success';
+                
+            } catch (error) {
+                console.error('Error loading models:', error);
+                document.getElementById('modelStatus').innerHTML = '❌ Error loading models. Make sure all files are in the same directory.';
+                document.getElementById('modelStatus').className = 'status error';
+            }
+        }
+
+        function standardizeClassification(features) {
+            return features.map((val, idx) => (val - classScaler.mean[idx]) / classScaler.scale[idx]);
+        }
+
+        function standardizeRegression(features) {
+            return features.map((val, idx) => (val - regScaler.X_mean[idx]) / regScaler.X_scale[idx]);
+        }
+
+        function inverseTransformRegression(value) {
+            return value * regScaler.y_scale[0] + regScaler.y_mean[0];
+        }
+
+        // Classification form
+        document.getElementById('classificationForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            if (!classificationSession) {
+                alert('Model not loaded yet. Please wait.');
+                return;
+            }
+
+            const resultDiv = document.getElementById('classificationResult');
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'result';
+            resultDiv.innerHTML = '<p class="loading">🔄 Analyzing medical data...</p>';
+
+            try {
+                const features = [
+                    parseFloat(document.getElementById('class_age').value),
+                    parseFloat(document.getElementById('class_sex').value),
+                    parseFloat(document.getElementById('class_chestpain').value),
+                    parseFloat(document.getElementById('class_bp').value),
+                    parseFloat(document.getElementById('class_chol').value),
+                    parseFloat(document.getElementById('class_fbs').value),
+                    parseFloat(document.getElementById('class_ecg').value),
+                    parseFloat(document.getElementById('class_hr').value),
+                    parseFloat(document.getElementById('class_angina').value),
+                    parseFloat(document.getElementById('class_oldpeak').value),
+                    parseFloat(document.getElementById('class_slope').value)
+                ];
+
+                const standardizedFeatures = standardizeClassification(features);
+                const inputTensor = new ort.Tensor('float32', new Float32Array(standardizedFeatures), [1, 11]);
+                const results = await classificationSession.run({ input: inputTensor });
+                const output = results.output.data;
+
+                const prediction = output[0] > output[1] ? 0 : 1;
+                const confidence = Math.max(output[0], output[1]) * 100;
+
+                resultDiv.className = 'result ' + (prediction === 1 ? 'error' : 'success');
+                resultDiv.innerHTML = `
+                    <h3>${prediction === 1 ? '⚠️ High Risk Detected' : '✅ Low Risk'}</h3>
+                    <p class="prediction-value">${prediction === 1 ? 'Heart Disease Likely' : 'No Heart Disease'}</p>
+                    <div class="prediction-details">
+                        <p><strong>Confidence Level:</strong> ${confidence.toFixed(1)}%</p>
+                        <p style="margin-top: 10px;">
+                            ${prediction === 1 
+                                ? '<strong>⚠️ Recommendation:</strong> Please consult with a healthcare professional for proper diagnosis and treatment. This is a predictive model and should not replace professional medical advice.'
+                                : '<strong>✅ Recommendation:</strong> Continue maintaining a healthy lifestyle with regular exercise, balanced diet, and routine medical checkups.'}
+                        </p>
+                    </div>
+                `;
+            } catch (error) {
+                console.error('Prediction error:', error);
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = '<h3>❌ Error</h3><p>Failed to make prediction. Please check your inputs and try again.</p>';
+            }
+        });
+
+        // Regression form
+        document.getElementById('regressionForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            if (!regressionSession) {
+                alert('Model not loaded yet. Please wait.');
+                return;
+            }
+
+            const resultDiv = document.getElementById('regressionResult');
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'result';
+            resultDiv.innerHTML = '<p class="loading">🔄 Calculating insurance cost...</p>';
+
+            try {
+                const features = [
+                    parseFloat(document.getElementById('reg_age').value),
+                    parseFloat(document.getElementById('reg_sex').value),
+                    parseFloat(document.getElementById('reg_bmi').value),
+                    parseFloat(document.getElementById('reg_children').value),
+                    parseFloat(document.getElementById('reg_smoker').value),
+                    parseFloat(document.getElementById('reg_region').value)
+                ];
+
+                const standardizedFeatures = standardizeRegression(features);
+                const inputTensor = new ort.Tensor('float32', new Float32Array(standardizedFeatures), [1, 6]);
+                const results = await regressionSession.run({ input: inputTensor });
+                const standardizedOutput = results.output.data[0];
+                const prediction = inverseTransformRegression(standardizedOutput);
+
+                resultDiv.className = 'result success';
+                resultDiv.innerHTML = `
+                    <h3>💰 Estimated Insurance Cost</h3>
+                    <p class="prediction-value">$${prediction.toFixed(2)}</p>
+                    <div class="prediction-details">
+                        <p><strong>Annual Premium Estimate</strong></p>
+                        <p style="margin-top: 10px;">
+                            This is an AI-predicted insurance cost based on the provided information. 
+                            Actual costs may vary based on insurance provider, coverage type, and other factors.
+                        </p>
+                        <div style="margin-top: 15px; padding: 10px; background: #f8f9fa; border-radius: 5px; font-size: 0.9rem;">
+                            <strong>💡 Cost Factors:</strong><br>
+                            ${features[4] === 1 ? '⚠️ Smoking status significantly increases insurance costs<br>' : '✅ Non-smoker - lower risk category<br>'}
+                            ${features[2] > 30 ? '⚠️ Higher BMI may increase premiums<br>' : '✅ Healthy BMI range<br>'}
+                            ${features[0] > 50 ? '⚠️ Age over 50 typically increases costs<br>' : '✅ Age in lower premium bracket<br>'}
+                            <strong>Model Accuracy:</strong> R² = 0.8743
+                        </div>
+                    </div>
+                `;
+            } catch (error) {
+                console.error('Prediction error:', error);
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = '<h3>❌ Error</h3><p>Failed to make prediction. Please check your inputs and try again.</p>';
+            }
+        });
+
+        window.addEventListener('load', loadModels);
+    </script>
+</body>
+</html>
